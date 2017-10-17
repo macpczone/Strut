@@ -14,7 +14,6 @@ function(Backbone) {
 		'https://': true,
 		'https:': true
 	};
-
 	var Modal = Backbone.View.extend({
 		className: "itemGrabber modal hide",
 		events: {
@@ -27,7 +26,6 @@ function(Backbone) {
 		},
 		initialize: function() {
 			this.loadItem = _.debounce(this.loadItem.bind(this), 200);
-			this.storage = navigator.getDeviceStorage('pictures');
 		},
 		show: function(cb) {
 			this.cb = cb;
@@ -48,47 +46,40 @@ function(Backbone) {
 
 			this._switchToProgress();
 			this.item.src = '';
-			
-			var storage = this.storage;
-			var name = f.name;
-			var i = 0;
-			
-			(function upload() {
-				var dspath = 'Presentation Images/' + name;
-				var airbornpath = 'airbornstorage:/Pictures/' + dspath;
-				var req = storage.addNamed(f, dspath);
-				
-				req.addEventListener('success', function() {
-					airborn.fs.getObjectLocation(airbornpath, function(loc) {
-						_this._switchToThumbnail();
-						_this.$input.val(airbornpath + '?hmac=' + loc.object);
-						_this.urlChanged({
-							which: -1
-						});
-					});
-				});
-				
-				req.addEventListener('error', function() {
-					if(req.error.name === 'NoModificationAllowedError') {
-						name = f.name.replace(/(\/|\.\w+)?$/, ' (' + (++i) + ')$&');
-						upload();
-					} else {
-						_this._updateProgress(0);
-						_this._switchToThumbnail();
-						_this.$input.val('Failed to upload image');
-					}
-				});
-			})();
 
-			
-			// reader = new FileReader();
-			// reader.onload = function(e) {
-			//   _this.$input.val(e.target.result);
-			//   _this.urlChanged({
-			//     which: -1
-			//   });
-			// };
-			// reader.readAsDataURL(f);
+			var settings = this._editorModel.registry.getBest('strut.settings');
+
+			if(settings == null || settings.model.load('useImgUr') ) {
+				this.ImgUrUpload(f, reader, _this, e);			
+			} else {
+				this.base64Upload(f, reader, _this);				
+			}
+		},
+		base64Upload: function(f, reader, _this) {
+			reader = new FileReader();
+			reader.onload = function(e) {
+			  _this.$input.val(e.target.result);
+			  _this.urlChanged({
+			    which: -1
+			  });
+			};
+			reader.readAsDataURL(f);
+			_this._switchToThumbnail();
+		},
+		ImgUrUpload: function(f, reader, _this, e) {
+			imgup.upload(f).progress(function(ratio) {
+				_this._updateProgress(ratio);
+			}).then(function(result) {
+				_this._switchToThumbnail();
+				_this.$input.val(result.data.link);
+				_this.urlChanged({
+					which: -1
+				});
+			}, function() {
+				_this._updateProgress(0);
+				_this._switchToThumbnail();
+				_this.$input.val('Failed to upload image to imgur');
+			});
 		},
 		browseClicked: function() {
 			return this.$el.find('input[type="file"]').click();
@@ -118,7 +109,8 @@ function(Backbone) {
 				val = 'http://' + val;
 			}
 
-			return this.src = this.item.src = val;
+			this.item.src = val;
+			return this.src = this.item.src;
 		},
 		_itemLoadError: function() {
 			this.$el.find(".ok").addClass("disabled");
@@ -164,7 +156,8 @@ function(Backbone) {
 
 			return this.$el;
 		},
-		constructor: function ItemImportModal() {
+		constructor: function ItemImportModal(options) {
+		this._editorModel = options['editorModel'];
 		Backbone.View.prototype.constructor.apply(this, arguments);
 	}
 	});

@@ -68,6 +68,11 @@ included for legacy support of old decks with the defaultbg attribute set.
 	background-color: #C98D8D;
 }
 
+.nobg {
+	background: url(img/nobg.png);
+	background-size: 40px 40px;
+}
+
 .themeProviders .thumbnail {
 	box-sizing: border-box;
 	height: 40px;

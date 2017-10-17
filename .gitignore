@@ -12,4 +12,4 @@ psd-export/
 .project
 .buildpath
 .tern-port
-
+*.orig

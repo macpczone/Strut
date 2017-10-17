@@ -73,6 +73,12 @@ define(["libs/backbone",
 				this.model.on("drag", this.drag, this);
 				this.model.on("dragStop", this.dragStop, this);
 
+
+				key.on("moveDown", _.debounce(this._moveDown, 100), this);
+				key.on("moveUp", _.debounce(this._moveUp, 100), this);
+				key.on("moveRight", _.debounce(this._moveRight, 100), this);
+				key.on("moveLeft", _.debounce(this._moveLeft, 100), this);
+
 				this.$el.css('z-index', zTracker.next());
 				this._lastDeltas = {
 					dx: 0,
@@ -265,6 +271,51 @@ define(["libs/backbone",
 						});
 					}, 'Move Slide Transition');
 				}
+			},
+
+			_moveDown: function (e, distance) {
+				distance = distance != undefined ? distance : 50;
+				this._move('y', function(comp) { return comp.get('y') + distance;}, 'Down');
+			},
+		
+			_moveUp: function (e, distance) {
+				distance = distance != undefined ? distance : 50;
+				this._move('y', function(comp) { return comp.get('y') - distance;}, 'Up');
+			},
+		
+			_moveRight: function (e, distance) {
+				distance = distance != undefined ? distance : 50;
+				this._move('x', function(comp) { return comp.get('x') + distance;}, 'Right');
+			},
+
+		
+			_moveLeft: function (e, distance) {
+				distance = distance != undefined ? distance : 50;
+				this._move('x', function(comp) { return comp.get('x') - distance;}, 'Left');
+			},
+
+			_move: function(dimension, callback, eventName) {
+				var components = [];
+
+				if (this.model.slide) {
+					components = this.model.slide.selected;
+				} else if(this.model.get('selected')) {
+					components = this.options.deck.selected;
+				}
+				var _this = this;
+
+				undoHistory.record(function() {
+					_.each(components, function(comp) {
+						if(_this.$el && (_this.$el.parents('.slideEditor')[0] || _this.$el.parents('.strut-surface')[0]))
+						{
+								undoHistory.pushdo(new ComponentCommands.Move({x: comp.get('x'), y: comp.get('y')}, comp));
+								comp.set(dimension, callback(comp));
+						}
+					});
+				}, 'Move ' + (components.length > 1 ? 'Components' :
+								(components[0] && typeof components[0].get == "function" && components[0].get('type') ? components[0].get('type') : 'Component')
+						)
+					+ ' ' + eventName);
 			},
 
 			/**
